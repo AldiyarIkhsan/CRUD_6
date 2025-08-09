@@ -6,6 +6,8 @@ import { setupPosts } from "./setupPosts";
 import { setupTestingRoutes } from "./setupTestingRoutes";
 import { setupUsers } from "./users";
 import { setupAuth } from "./auth";
+import { setupComments } from "./setupComments";
+
 
 dotenv.config();
 
@@ -22,6 +24,7 @@ setupBlogs(app);
 setupPosts(app);
 setupUsers(app);
 setupAuth(app);
+setupComments(app);  
 
 const start = async () => {
   await connectDB();
