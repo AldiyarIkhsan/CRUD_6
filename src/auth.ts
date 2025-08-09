@@ -1,9 +1,8 @@
 import { Express, Request, Response } from "express";
 import { UserModel } from "./models/UserModel";
 import bcrypt from "bcrypt";
-import { authMiddleware } from "./middleware";
-
 import jwt, { Secret, SignOptions } from "jsonwebtoken";
+import { authMiddleware } from "./middleware";
 
 export const setupAuth = (app: Express) => {
   app.post("/auth/login", async (req: Request, res: Response) => {
@@ -23,11 +22,7 @@ export const setupAuth = (app: Express) => {
     const secret: Secret = process.env.JWT_SECRET ?? "secret";
     const expiresIn: SignOptions["expiresIn"] = (process.env.JWT_EXPIRES ?? "1h") as any;
 
-    const token = jwt.sign({ userId: user._id.toString() }, secret, {
-      expiresIn,
-      algorithm: "HS256",
-    });
-
+    const token = jwt.sign({ userId: user._id.toString() }, secret, { expiresIn, algorithm: "HS256" });
     return res.status(200).json({ accessToken: token });
   });
 

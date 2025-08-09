@@ -1,10 +1,10 @@
 import { Express, Request, Response } from "express";
-import { blogValidationRules, handleInputErrors, authMiddleware } from "./middleware";
+import { blogValidationRules, handleInputErrors, basicAuthMiddleware } from "./middleware";
 import { BlogModel } from "./models/BlogModel";
 import { PostModel } from "./models/PostModel";
 
 export const setupBlogs = (app: Express) => {
-  
+  // Публичные GET
   app.get("/blogs", async (req: Request, res: Response) => {
     const {
       searchNameTerm = "",
@@ -13,19 +13,13 @@ export const setupBlogs = (app: Express) => {
       sortBy = "createdAt",
       sortDirection = "desc",
     } = req.query;
-
-    const filter = {
-      name: { $regex: searchNameTerm as string, $options: "i" },
-    };
-
+    const filter = { name: { $regex: searchNameTerm as string, $options: "i" } };
     const totalCount = await BlogModel.countDocuments(filter);
     const pagesCount = Math.ceil(totalCount / Number(pageSize));
-
     const blogs = await BlogModel.find(filter)
       .sort({ [sortBy as string]: sortDirection === "asc" ? 1 : -1 })
       .skip((Number(pageNumber) - 1) * Number(pageSize))
       .limit(Number(pageSize));
-
     res.status(200).json({
       pagesCount,
       page: Number(pageNumber),
@@ -57,20 +51,15 @@ export const setupBlogs = (app: Express) => {
 
   app.get("/blogs/:id/posts", async (req: Request, res: Response) => {
     const { pageNumber = 1, pageSize = 10, sortBy = "createdAt", sortDirection = "desc" } = req.query;
-
     const blog = await BlogModel.findById(req.params.id);
     if (!blog) return res.sendStatus(404);
-
     const filter = { blogId: req.params.id };
-
     const totalCount = await PostModel.countDocuments(filter);
     const pagesCount = Math.ceil(totalCount / Number(pageSize));
-
     const posts = await PostModel.find(filter)
       .sort({ [sortBy as string]: sortDirection === "asc" ? 1 : -1 })
       .skip((Number(pageNumber) - 1) * Number(pageSize))
       .limit(Number(pageSize));
-
     res.status(200).json({
       pagesCount,
       page: Number(pageNumber),
@@ -88,15 +77,15 @@ export const setupBlogs = (app: Express) => {
     });
   });
 
+  // Админские: Basic auth
   app.post(
     "/blogs",
-    authMiddleware,
+    basicAuthMiddleware,
     blogValidationRules,
     handleInputErrors,
     async (req: Request, res: Response) => {
       const { name, description, websiteUrl } = req.body;
-      const blog = new BlogModel({ name, description, websiteUrl });
-      await blog.save();
+      const blog = await BlogModel.create({ name, description, websiteUrl });
       res.status(201).json({
         id: blog._id.toString(),
         name: blog.name,
@@ -110,7 +99,7 @@ export const setupBlogs = (app: Express) => {
 
   app.put(
     "/blogs/:id",
-    authMiddleware,
+    basicAuthMiddleware,
     blogValidationRules,
     handleInputErrors,
     async (req: Request, res: Response) => {
@@ -120,7 +109,7 @@ export const setupBlogs = (app: Express) => {
     },
   );
 
-  app.delete("/blogs/:id", authMiddleware, async (req: Request, res: Response) => {
+  app.delete("/blogs/:id", basicAuthMiddleware, async (req: Request, res: Response) => {
     const deleted = await BlogModel.findByIdAndDelete(req.params.id);
     if (!deleted) return res.sendStatus(404);
     res.sendStatus(204);
