@@ -1,42 +1,50 @@
 import { Express, Request, Response } from "express";
-import { basicAuthMiddleware } from "./middleware";
-import { UserModel } from "./models/UserModel";
 import bcrypt from "bcrypt";
-import { userValidationRules, handleInputErrors } from "./middleware";
+import { UserModel } from "./models/UserModel";
+import { authMiddleware, userValidationRules, handleInputErrors } from "./middleware";
 
 export const setupUsers = (app: Express) => {
-
-  app.get("/users", basicAuthMiddleware, async (req: Request, res: Response) => {
+  // GET /users (JWT Bearer)
+  app.get("/users", authMiddleware, async (req: Request, res: Response) => {
     const {
-      searchLoginTerm = "",
-      searchEmailTerm = "",
-      pageNumber = 1,
-      pageSize = 10,
-      sortBy = "createdAt",
-      sortDirection = "desc",
+      searchLoginTerm,
+      searchEmailTerm,
+      pageNumber,
+      pageSize,
+      sortBy,
+      sortDirection,
     } = req.query;
 
-    const filter = {
-      $or: [
-        { login: { $regex: searchLoginTerm as string, $options: "i" } },
-        { email: { $regex: searchEmailTerm as string, $options: "i" } },
-      ],
-    };
+    const page = Number(pageNumber) > 0 ? Number(pageNumber) : 1;
+    const size = Number(pageSize) > 0 ? Number(pageSize) : 10;
+    const sortField = (typeof sortBy === "string" && sortBy) || "createdAt";
+    const sortDirVal =
+      typeof sortDirection === "string" && sortDirection.toLowerCase() === "asc" ? 1 : -1;
+
+    const or: any[] = [];
+    if (typeof searchLoginTerm === "string" && searchLoginTerm.trim() !== "") {
+      or.push({ login: { $regex: searchLoginTerm, $options: "i" } });
+    }
+    if (typeof searchEmailTerm === "string" && searchEmailTerm.trim() !== "") {
+      or.push({ email: { $regex: searchEmailTerm, $options: "i" } });
+    }
+    const filter = or.length ? { $or: or } : {};
 
     const totalCount = await UserModel.countDocuments(filter);
-    const pagesCount = Math.ceil(totalCount / Number(pageSize));
+    const pagesCount = Math.max(1, Math.ceil(totalCount / size));
 
     const users = await UserModel.find(filter)
-      .sort({ [sortBy as string]: sortDirection === "asc" ? 1 : -1 })
-      .skip((Number(pageNumber) - 1) * Number(pageSize))
-      .limit(Number(pageSize));
+      .sort({ [sortField]: sortDirVal })
+      .skip((page - 1) * size)
+      .limit(size)
+      .lean();
 
-    res.status(200).json({
+    return res.status(200).json({
       pagesCount,
-      page: Number(pageNumber),
-      pageSize: Number(pageSize),
+      page,
+      pageSize: size,
       totalCount,
-      items: users.map((u) => ({
+      items: users.map((u: any) => ({
         id: u._id.toString(),
         login: u.login,
         email: u.email,
@@ -45,18 +53,23 @@ export const setupUsers = (app: Express) => {
     });
   });
 
+  // POST /users (JWT Bearer)
   app.post(
     "/users",
-    basicAuthMiddleware,
+    authMiddleware,
     userValidationRules,
     handleInputErrors,
-    
     async (req: Request, res: Response) => {
-      const { login, email, password } = req.body;
+      const { login, email, password } = req.body as {
+        login: string;
+        email: string;
+        password: string;
+      };
 
+      // уникальность логина/почты
       const existing = await UserModel.findOne({
         $or: [{ login }, { email }],
-      });
+      }).lean();
 
       if (existing) {
         const field = existing.login === login ? "login" : "email";
@@ -67,26 +80,25 @@ export const setupUsers = (app: Express) => {
 
       const passwordHash = await bcrypt.hash(password, 10);
 
-      const user = new UserModel({
+      const user = await UserModel.create({
         login,
         email,
         passwordHash,
       });
 
-      await user.save();
-
-      res.status(201).json({
+      return res.status(201).json({
         id: user._id.toString(),
         login: user.login,
         email: user.email,
         createdAt: user.createdAt,
       });
-    },
+    }
   );
 
-  app.delete("/users/:id", basicAuthMiddleware, async (req: Request, res: Response) => {
+  // DELETE /users/:id (JWT Bearer)
+  app.delete("/users/:id", authMiddleware, async (req: Request, res: Response) => {
     const deleted = await UserModel.findByIdAndDelete(req.params.id);
     if (!deleted) return res.sendStatus(404);
-    res.sendStatus(204);
+    return res.sendStatus(204);
   });
 };

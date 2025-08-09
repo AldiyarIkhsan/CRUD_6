@@ -64,7 +64,6 @@ export const setupPosts = (app: Express) => {
     });
   });
 
-  // POST /blogs/:blogId/posts — создать пост для конкретного блога (Basic auth)
   app.post(
     "/blogs/:blogId/posts",
     authMiddleware,
@@ -98,7 +97,6 @@ export const setupPosts = (app: Express) => {
     }
   );
 
-  // POST /posts — создать пост по blogId (Basic auth)
   app.post(
     "/posts",
     authMiddleware,
@@ -136,7 +134,6 @@ export const setupPosts = (app: Express) => {
     }
   );
 
-  // PUT /posts/:id — обновить пост (Basic auth)
   app.put(
     "/posts/:id",
     authMiddleware,
