@@ -1,25 +1,22 @@
 import { Request, Response, NextFunction } from "express";
 import { Result, ValidationError, validationResult, check } from "express-validator";
 
-export const basicAuthMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  if (req.method === "GET" || req.path === "/testing/all-data") {
-    return next();
-  }
+import jwt from "jsonwebtoken";
 
+export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Basic ")) {
+  if (!authHeader?.startsWith("Bearer ")) {
     return res.sendStatus(401);
   }
 
-  const base64 = authHeader.split(" ")[1];
-  const decoded = Buffer.from(base64, "base64").toString();
-  const [login, password] = decoded.split(":");
-
-  if (login !== "admin" || password !== "qwerty") {
+  const token = authHeader.split(" ")[1];
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET || "secret") as { userId: string };
+    (req as any).userId = payload.userId;
+    next();
+  } catch {
     return res.sendStatus(401);
   }
-
-  next();
 };
 
 export const handleInputErrors = (req: Request, res: Response, next: NextFunction) => {
@@ -129,4 +126,13 @@ export const userValidationRules = [
     .withMessage("Password length must be 6-20"),
 
   check("email").trim().notEmpty().withMessage("Email is required").isEmail().withMessage("Invalid email format"),
+];
+
+export const commentValidationRules = [
+  check("content")
+    .trim()
+    .notEmpty()
+    .withMessage("Content is required")
+    .isLength({ min: 20, max: 300 })
+    .withMessage("Content length should be 20-300"),
 ];

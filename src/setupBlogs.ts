@@ -1,5 +1,5 @@
 import { Express, Request, Response } from "express";
-import { blogValidationRules, handleInputErrors, basicAuthMiddleware } from "./middleware";
+import { blogValidationRules, handleInputErrors, authMiddleware } from "./middleware";
 import { BlogModel } from "./models/BlogModel";
 import { PostModel } from "./models/PostModel";
 
@@ -90,7 +90,7 @@ export const setupBlogs = (app: Express) => {
 
   app.post(
     "/blogs",
-    basicAuthMiddleware,
+    authMiddleware,
     blogValidationRules,
     handleInputErrors,
     async (req: Request, res: Response) => {
@@ -110,7 +110,7 @@ export const setupBlogs = (app: Express) => {
 
   app.put(
     "/blogs/:id",
-    basicAuthMiddleware,
+    authMiddleware,
     blogValidationRules,
     handleInputErrors,
     async (req: Request, res: Response) => {
@@ -120,7 +120,7 @@ export const setupBlogs = (app: Express) => {
     },
   );
 
-  app.delete("/blogs/:id", basicAuthMiddleware, async (req: Request, res: Response) => {
+  app.delete("/blogs/:id", authMiddleware, async (req: Request, res: Response) => {
     const deleted = await BlogModel.findByIdAndDelete(req.params.id);
     if (!deleted) return res.sendStatus(404);
     res.sendStatus(204);

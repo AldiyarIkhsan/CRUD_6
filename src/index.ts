@@ -1,8 +1,8 @@
 import express from "express";
 import dotenv from "dotenv";
 import { connectDB } from "./db";
-import { setupBlogs } from "./blogs";
-import { setupPosts } from "./posts";
+import { setupBlogs } from "./setupBlogs";
+import { setupPosts } from "./setupPosts";
 import { setupTestingRoutes } from "./setupTestingRoutes";
 import { setupUsers } from "./users";
 import { setupAuth } from "./auth";
